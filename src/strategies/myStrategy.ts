@@ -5,31 +5,53 @@ export class MyStrategy extends Strategy {
   readonly name = "MyStrategy";
 
   chooseMove(board: Board, me: Player): number {
-    const foe = otherPlayer(me);
+    const opponent = otherPlayer(me);
+    const validColumns = board.getValidMoves();
     const moves = board.getValidMoves();
 
-    for (const m of moves) if (board.wouldWin(m, me)) return m;
+    // Check for winning move.
+    for (const moves of validColumns) {
+      if (board.wouldWin(moves, me)) return moves;
+    }
 
-    for (const m of moves) if (board.wouldWin(m, foe)) return m;
-
+    //Check if opponent would win in each column.
+    for (const moves of validColumns) {
+      if (board.wouldWin(moves, opponent)) return moves;
+    }
+    
+    // Check for valid moves that would result in the opponent not getting a winning move on the next turn.
     const safe = moves.filter((m) => {
       const next = board.clone();
       next.dropPiece(m, me);
-      return !next.getValidMoves().some((n) => next.wouldWin(n, foe));
+      return !next.getValidMoves().some((n) => next.wouldWin(n, opponent));
     });
-
     const pool = safe.length ? safe : moves;
+
+    const center = (COLS - 1) / 2;
+    //return pool.slice().sort((a, b) => Math.abs(a - center) - Math.abs(b - center))[0];
     
     let best = pool[0];
     let bestScore = -Infinity;
-    
     for (const m of pool) {
       const next = board.clone();
       next.dropPiece(m, me);
-      const score = this.longestRun(next, me) * 10 - Math.abs(m - (COLS - 1) / 2) + Math.random() * 0.5;
+      let enemyScore: number = 0;
+      const enemyMoves = next.getValidMoves();
 
-      if (score > bestScore) {
-        bestScore = score;
+      // calculate my score
+      const score = this.longestRun(next, me) * 10 - Math.abs(m - center) + Math.random() * 0.5;
+      // calculate enemy score
+          for (const enemyMove of enemyMoves) {
+          const enemyNext = next.clone()
+          enemyNext.dropPiece(enemyMove, opponent);
+          let currentEnemyScore = this.longestRun(enemyNext, opponent) * 10 - Math.abs(enemyMove - center) + Math.random() * 0.5;
+          enemyScore = Math.max(enemyScore, currentEnemyScore)
+          }
+      // calculate which is the best score from player against bot
+      const finalScore = score - enemyScore
+
+      if (finalScore > bestScore) {
+        bestScore = finalScore;
         best = m;
       }
     }
@@ -50,4 +72,6 @@ export class MyStrategy extends Strategy {
     }
     return best;
   }
-}
+  }
+    
+
